@@ -1,0 +1,3 @@
+[submodule "ffc.h"]
+	path = ffc.h
+	url = https://github.com/kolemannix/ffc.h

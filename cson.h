@@ -43,6 +43,8 @@ bool                cson_bool           (const cson_item_t *item);
 /* Implementation */
 
 #ifdef CSON_IMPL
+#define FFC_IMPL
+#include "ffc.h/ffc.h"
 
 typedef enum {
     CSON_NON_STANDARD = 0,
@@ -320,10 +322,9 @@ static cson_lexer_token_t *cson_lexer(char *str, size_t length, uint32_t *num_to
             else
             {
 
-                char *endptr;
-                errno = 0;
-                toks[num_toks++] = (cson_lexer_token_t){CSON_LEXER_TOKEN_NUMBER, .value.number = 0.0/*strtod(string_to_be_parsed, &endptr)*/};
-                if(string_to_be_parsed == endptr || errno == ERANGE)
+                ffc_outcome outcome;
+                toks[num_toks++] = (cson_lexer_token_t){CSON_LEXER_TOKEN_NUMBER, .value.number = ffc_parse_double_simple((size_t)(&str[i] - string_to_be_parsed), string_to_be_parsed, &outcome)};
+                if(outcome != FFC_OUTCOME_OK)
                 {
                     free(toks);
                     return NULL;
