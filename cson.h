@@ -582,12 +582,12 @@ const cson_item_t *cson_parse_with_len(char *str, size_t length)
     if(tokens[0].type == CSON_LEXER_TOKEN_LBRACE)
     {
         binary_stack_push(&stack, STATE_OBJECT);
-        root[current_idx++] = (cson_item_t){CSON_OBJECT, 0, 1, NULL, 0};
+        root[current_idx++] = (cson_item_t){CSON_OBJECT, 0, 1, NULL, .data.num_children = 0};
     }
     else if(tokens[0].type == CSON_LEXER_TOKEN_LBRACKET)
     {
         binary_stack_push(&stack, STATE_ARRAY);
-        root[current_idx++] = (cson_item_t){CSON_ARRAY, 0, 1, NULL, 0};
+        root[current_idx++] = (cson_item_t){CSON_ARRAY, 0, 1, NULL, 0, .data.num_children = 0};
         awaiting_key = false;
     }
 
@@ -603,14 +603,14 @@ const cson_item_t *cson_parse_with_len(char *str, size_t length)
             case CSON_LEXER_TOKEN_LBRACE:
                 binary_stack_push(&stack, STATE_OBJECT);
                 root[parent_idx].data.num_children++;
-                root[current_idx] = (cson_item_t){CSON_OBJECT, current_idx - parent_idx, 1, current_key, 0};
+                root[current_idx] = (cson_item_t){CSON_OBJECT, current_idx - parent_idx, 1, current_key, .data.num_children = 0};
                 parent_idx = current_idx++;
                 awaiting_key = true;
                 break;
             case CSON_LEXER_TOKEN_LBRACKET:
                 binary_stack_push(&stack, STATE_ARRAY);
                 root[parent_idx].data.num_children++;
-                root[current_idx] = (cson_item_t){CSON_ARRAY, current_idx - parent_idx, 1, current_key, 0};
+                root[current_idx] = (cson_item_t){CSON_ARRAY, current_idx - parent_idx, 1, current_key, .data.num_children = 0};
                 parent_idx = current_idx++;
                 current_key = NULL;
                 awaiting_key = false;
@@ -648,7 +648,7 @@ const cson_item_t *cson_parse_with_len(char *str, size_t length)
                 break;
             case CSON_LEXER_TOKEN_NULL:
                 root[parent_idx].data.num_children++;
-                root[current_idx++] = (cson_item_t){CSON_NULL, current_idx - parent_idx, 1, current_key, 0};
+                root[current_idx++] = (cson_item_t){CSON_NULL, current_idx - parent_idx, 1, current_key, .data.string = NULL};
                 break;
             default:
                 break;
