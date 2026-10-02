@@ -26,8 +26,8 @@ typedef struct cson_item_s cson_item_t;
 
 void cson_print(const cson_item_t *root);
 
-const cson_item_t  *cson_parse          (const char *str);
-const cson_item_t  *cson_parse_with_len (const char *str, size_t length);
+const cson_item_t  *cson_parse          (char *str); // str will be modified
+const cson_item_t  *cson_parse_with_len (char *str, size_t length); // str will be modified
 void                cson_free           (const cson_item_t *root);
 const cson_item_t  *cson_next_sibling   (const cson_item_t *item);
 const cson_item_t  *cson_parent         (const cson_item_t *item);
@@ -599,18 +599,15 @@ static uint32_t _get_num_items_and_error_check(cson_lexer_token_t *tokens, uint3
     return num_items;
 }
 
-#define SHIFT_STRING(str, diff) (char *)(str + diff)
-
-const cson_item_t* cson_parse(const char* json_str) {
-    size_t len = strlen(json_str); 
-    return cson_parse_with_len(json_str, len);
+const cson_item_t* cson_parse(char* str) {
+    size_t len = strlen(str); 
+    return cson_parse_with_len(str, len);
 }
 
-const cson_item_t *cson_parse_with_len(const char *str, size_t length)
+const cson_item_t *cson_parse_with_len(char *str, size_t length)
 {
-    char *str_to_be_lexered = strdup(str);
     uint32_t num_tokens;
-    cson_lexer_token_t *tokens = cson_lexer(str_to_be_lexered, length - 1, &num_tokens);
+    cson_lexer_token_t *tokens = cson_lexer(str, length - 1, &num_tokens);
     if(!tokens)
         return NULL;
 
@@ -621,12 +618,7 @@ const cson_item_t *cson_parse_with_len(const char *str, size_t length)
         return NULL;
     }
 
-    cson_item_t *root = malloc(sizeof(cson_item_t) * num_items + length);
-
-    char* strings = (char *)root + (sizeof(cson_item_t) * num_items);
-    memcpy(strings, str_to_be_lexered, length);
-
-    ptrdiff_t str_ptr_diff = strings - str_to_be_lexered; // To offset the char* by the correct amount. uintptr_t should ensure this keeps working for all optimization levels
+    cson_item_t *root = malloc(sizeof(cson_item_t) * num_items);
 
     uint32_t current_idx = 0;
 
@@ -682,13 +674,13 @@ const cson_item_t *cson_parse_with_len(const char *str, size_t length)
             case CSON_LEXER_TOKEN_STRING:
                 if(awaiting_key)
                 {
-                    current_key = SHIFT_STRING(token.value.ptr, str_ptr_diff);
+                    current_key = token.value.ptr;
                     awaiting_key = false;
                 }
                 else
                 {
                     root[parent_idx].data.num_children++;
-                    root[current_idx++] = (cson_item_t){CSON_STRING, current_idx - parent_idx, 1, current_key, .data.string=SHIFT_STRING(token.value.ptr, str_ptr_diff)};
+                    root[current_idx++] = (cson_item_t){CSON_STRING, current_idx - parent_idx, 1, current_key, .data.string=token.value.ptr};
                 }
                 break;
             case CSON_LEXER_TOKEN_NUMBER:
@@ -708,17 +700,10 @@ const cson_item_t *cson_parse_with_len(const char *str, size_t length)
         }
 
         if(previous_idx != current_idx)
-        {
             previous_idx = current_idx;
-            //printf("Num items: %d\n", current_idx - 1);
-            //printf("%d: ", current_idx - 1);
-            //print_item(object->items[current_idx-1]);
-        }
     }
 
     free(tokens);
-    free(str_to_be_lexered);
-
     return root;
 }
 
