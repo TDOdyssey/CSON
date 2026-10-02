@@ -168,6 +168,7 @@ static inline bool _is_token_char(char c)
            c == '"';
 }
 
+// TODO! SIMD is planned...
 #ifdef CSON_SIMD
 #include <immintrin.h>
 
@@ -180,49 +181,6 @@ static cson_lexer_token_t *cson_lexer_simd(char *str, uint32_t *num_toks_r)
     }
 }
 #endif
-
-static cson_lexer_token_t *cson_lexer_temp(char *str, uint32_t *num_toks_r)
-{
-    uint32_t num_toks = 0;
-    //size_t length = strlen(str);
-    for(size_t i = 0; str[i] != '\0'; i++){
-        char c = str[i];
-        switch(c)
-        {
-            case '{':
-            case '}':
-            case '[':
-            case ']':
-            case ':':
-            case ',':
-                num_toks++;
-                break;
-            case '"':
-                num_toks++;
-                for(++i; str[i] != '\0'; i++)
-                {
-                    if(str[i] == '"')
-                        break;
-                    if(str[i] == '\\')
-                        i++;
-                }
-                break;
-            default:
-                if(isspace(c)) break;
-                // Parse bool, null, int, and float types
-
-                for(; str[i] != '\0' && !_is_space(str[i]) && !_is_token_char(str[i]); i++);
-
-                num_toks++;
-                i--;
-                break;
-        }
-
-    }
-
-    *num_toks_r = num_toks;
-    return NULL;
-}
 
 cson_lexer_token_type_t types[128] = {
     ['{'] = CSON_LEXER_TOKEN_LBRACE,
@@ -434,7 +392,6 @@ static uint32_t _get_num_items_and_error_check(cson_lexer_token_t *tokens, uint3
         binary_stack_push(&stack, STATE_ARRAY);
     else
     {
-        // TODO account for array possibility somehow
         printf("ERROR: Json must start with a left brace/bracket!\n");
         i = -1;
     }
@@ -443,10 +400,8 @@ static uint32_t _get_num_items_and_error_check(cson_lexer_token_t *tokens, uint3
     while(i < num_tokens - 1)
     {
         i++;
-        //printf("%s | Current token: ", binary_stack_peek(&stack) == STATE_OBJECT ? "OBJ" : "ARR");
         cson_lexer_token_t token = tokens[i];
         previous_token = tokens[i-1];
-        //print_token(token);
         switch(token.type)
         {
             case CSON_LEXER_TOKEN_LBRACE:
@@ -825,12 +780,12 @@ const cson_item_t *cson_find(const cson_item_t *item, const char *path)
             current_item = cson_object_get(current_item, token);
         else if(cson_type(current_item) == CSON_ARRAY)
         {
-            char *endptr;
-            long val = strtol(token, &endptr, 10);
-            if (endptr == str || *endptr != '\0' || ((val == LONG_MAX || val == LONG_MIN) && errno == ERANGE) || val > INT_MAX || val < INT_MIN)
+            ffc_outcome outcome;
+            uint32_t number = ffc_parse_u32_simple(strlen(token), token, 10, &outcome);
+            if (outcome != FFC_OUTCOME_OK)
                 return NULL;
             else
-                current_item = cson_array_at(current_item, (int)val);
+                current_item = cson_array_at(current_item, number);
         }
         else
             return NULL;
